@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Créez votre devis de mariage personnalisé. Sélectionnez vos prestations, ajustez les quantités et générez votre PDF en un clic." />
+
+  <title>Devis Mariage — Élégance Nuptiale</title>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="index.css?v=8" />
+
+  <!-- html2pdf.js for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+
+  <!-- App Logic -->
+  <script src="app.js?v=8" defer></script>
+</head>
+<body>
+
+  <!-- ── Language Switcher ── -->
+  <button class="lang-switcher" id="lang-switcher" type="button" onclick="window.toggleLang()">
+    <span class="lang-pill lang-pill--active" id="pill-fr">FR</span>
+    <span class="lang-divider">|</span>
+    <span class="lang-pill" id="pill-ar">عربي</span>
+  </button>
+
+  <!-- ── Edit Mode Toggle ── -->
+  <button class="edit-toggle" id="edit-toggle" type="button" onclick="window.toggleEdit()">
+    <span class="edit-toggle__icon" id="edit-toggle-icon">✏️</span>
+    <span class="edit-toggle__label" id="edit-toggle-label">Éditer</span>
+  </button>
+
+  <!-- ── Client Manager Toggle ── -->
+  <button class="client-btn" id="client-btn" type="button" onclick="window.openClientModal()">
+    <span class="client-btn__icon">👥</span>
+    <span class="client-btn__label" id="client-btn-label">Clients</span>
+  </button>
+
+  <!-- ── Reset Button (visible in edit mode only) ── -->
+  <button class="reset-btn" id="reset-btn" type="button" onclick="window.resetData()" style="display:none">
+    ↺ Réinitialiser
+  </button>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__badge">
+      <span class="header__badge-dot"></span>
+      Devis interactif
+    </div>
+    
+    <!-- Active Project Banner (hidden by default) -->
+    <div id="active-project-banner" class="active-project-banner" style="display: none;">
+      <span class="active-project-banner__icon">📁</span>
+      <span class="active-project-banner__text" id="active-project-banner-text">Projet : Sans Titre</span>
+      <button class="active-project-banner__close" onclick="window.unloadActiveProject()" title="Fermer le projet">✕</button>
+    </div>
+
+    <h1 class="header__title">Composez votre Mariage de Rêve</h1>
+    <p class="header__subtitle">
+      Sélectionnez vos prestations, ajustez les détails et obtenez votre devis personnalisé en temps réel.
+    </p>
+  </header>
+
+  <!-- ── Company Settings (visible in edit mode only) ── -->
+  <section class="company-settings" id="company-settings-section" style="display:none">
+    <div class="company-settings__inner">
+      <h3 class="company-settings__title" id="comp-settings-title">Paramètres de l'entreprise</h3>
+      <div class="company-settings__form">
+        <!-- Logo block -->
+        <div class="company-settings__logo-group">
+          <div class="company-settings__logo-preview-wrapper">
+            <img class="company-settings__logo-preview" id="comp-logo-preview" src="" alt="Logo" onerror="this.style.display='none'" />
+            <span class="company-settings__logo-placeholder" id="comp-logo-placeholder">Pas de logo</span>
+          </div>
+          <div class="company-settings__file-input-wrapper">
+            <label class="btn-browse" id="label-browse-logo">
+              📁 Choisir Logo...
+              <input type="file" id="input-comp-logo" accept="image/*" style="display:none" onchange="window.handleCompanyLogo(this)" />
+            </label>
+            <button class="btn-danger-outline" type="button" onclick="window.removeCompanyLogo()" id="btn-remove-logo">Supprimer</button>
+          </div>
+        </div>
+        <!-- Input fields -->
+        <div class="company-settings__fields">
+          <div class="company-settings__field">
+            <label id="lbl-comp-name">Nom de l'entreprise</label>
+            <input type="text" id="input-comp-name" oninput="window.updateCompanyInfo('name', this.value)" />
+          </div>
+          <div class="company-settings__field">
+            <label id="lbl-comp-phone">Téléphone</label>
+            <input type="text" id="input-comp-phone" oninput="window.updateCompanyInfo('phone', this.value)" />
+          </div>
+          <div class="company-settings__field">
+            <label id="lbl-comp-email">E-mail</label>
+            <input type="email" id="input-comp-email" oninput="window.updateCompanyInfo('email', this.value)" />
+          </div>
+          <div class="company-settings__field">
+            <label id="lbl-comp-address">Adresse / Pays</label>
+            <input type="text" id="input-comp-address" oninput="window.updateCompanyInfo('address', this.value)" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Client Info Display on Estimate (visible when a project is loaded) ── -->
+  <section class="client-info-display" id="client-info-display" style="display: none;">
+    <div class="client-info-display__inner">
+      <div class="client-info-display__header">
+        <span class="client-info-display__header-icon">👤</span>
+        <div class="client-info-display__title" id="lbl-client-info-title">Informations du Client</div>
+      </div>
+      <div class="client-info-display__grid">
+        <div class="client-info-display__item">
+          <span class="client-info-display__label" id="lbl-info-client">Client</span>
+          <span class="client-info-display__value client-info-display__value--highlight" id="info-client-name">-</span>
+        </div>
+        <div class="client-info-display__item">
+          <span class="client-info-display__label" id="lbl-info-project">Projet</span>
+          <span class="client-info-display__value client-info-display__value--highlight" id="info-project-name">-</span>
+        </div>
+        <div class="client-info-display__item">
+          <span class="client-info-display__label" id="lbl-info-phone">Téléphone</span>
+          <span class="client-info-display__value" id="info-client-phone">-</span>
+        </div>
+        <div class="client-info-display__item">
+          <span class="client-info-display__label" id="lbl-info-email">E-mail</span>
+          <span class="client-info-display__value" id="info-client-email">-</span>
+        </div>
+        <div class="client-info-display__item" style="grid-column: span 2;">
+          <span class="client-info-display__label" id="lbl-info-address">Adresse</span>
+          <span class="client-info-display__value" id="info-client-address">-</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Stats ── -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-item__value" id="stat-total-items">8</div>
+      <div class="stat-item__label">Prestations</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__value" id="stat-options">5</div>
+      <div class="stat-item__label">Options</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__value" id="stat-selected">5</div>
+      <div class="stat-item__label">Sélectionnées</div>
+    </div>
+  </div>
+
+  <!-- ── Section Title ── -->
+  <div class="section-title">
+    <h2>Nos Prestations</h2>
+    <p>Activez ou désactivez les options selon vos envies</p>
+  </div>
+
+  <!-- ── Cards Grid ── -->
+  <main class="cards-grid" id="cards-grid"></main>
+
+  <!-- ── Sticky Bottom Bar ── -->
+  <div class="sticky-bar" id="sticky-bar">
+    <div class="sticky-bar__inner">
+      <div class="sticky-bar__totals">
+        <div class="sticky-bar__item">
+          <span class="sticky-bar__label">Total HT</span>
+          <span class="sticky-bar__value" id="total-ht">0,00 DA</span>
+        </div>
+        <div class="sticky-bar__item">
+          <span class="sticky-bar__label">TVA (19%)</span>
+          <span class="sticky-bar__value" id="total-tva">0,00 DA</span>
+        </div>
+        <div class="sticky-bar__item">
+          <span class="sticky-bar__label">Total TTC</span>
+          <span class="sticky-bar__value sticky-bar__value--highlight" id="total-ttc">0,00 DA</span>
+        </div>
+        <div class="sticky-bar__item">
+          <span class="sticky-bar__label">Prestations</span>
+          <span class="sticky-bar__value" id="selected-count">0</span>
+        </div>
+      </div>
+      <button class="btn-pdf" id="btn-generate-pdf" type="button">
+        <span class="btn-pdf__icon">📄</span>
+        Générer PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Add Service Modal ── -->
+  <div class="modal" id="add-modal">
+    <div class="modal__overlay" id="modal-overlay"></div>
+    <div class="modal__content">
+      <h2 class="modal__title">Nouvelle prestation</h2>
+      <form class="modal__form" id="modal-form" onsubmit="return false;">
+        <div class="modal__row">
+          <div class="modal__field">
+            <label data-label="titleFr">Titre (Français)</label>
+            <input type="text" id="input-titre-fr" required />
+          </div>
+          <div class="modal__field">
+            <label data-label="titleAr">Titre (Arabe)</label>
+            <input type="text" id="input-titre-ar" dir="rtl" />
+          </div>
+        </div>
+        <div class="modal__row">
+          <div class="modal__field">
+            <label data-label="descFr">Description (Français)</label>
+            <textarea id="input-desc-fr" rows="2"></textarea>
+          </div>
+          <div class="modal__field">
+            <label data-label="descAr">Description (Arabe)</label>
+            <textarea id="input-desc-ar" rows="2" dir="rtl"></textarea>
+          </div>
+        </div>
+        <div class="modal__row">
+          <div class="modal__field">
+            <label data-label="price">Prix unitaire (DA)</label>
+            <input type="number" id="input-prix" min="0" value="0" required />
+          </div>
+          <div class="modal__field">
+            <label data-label="qty">Quantité</label>
+            <input type="number" id="input-qty" min="1" value="1" required />
+          </div>
+        </div>
+        <div class="modal__field">
+          <label data-label="image">Image (Fichier ou URL)</label>
+          <div style="display: flex; gap: var(--space-sm); align-items: center;">
+            <label class="btn-browse" style="padding: 10px 18px; margin: 0; white-space: nowrap;" id="lbl-modal-browse">
+              📷 Choisir...
+              <input type="file" id="modal-input-image-file" accept="image/*" style="display:none" onchange="window.handleModalPhoto(this)" />
+            </label>
+            <input type="text" id="input-image" placeholder="Ou URL https://..." style="flex: 1;" />
+          </div>
+          <div id="modal-photo-preview-wrapper" style="display:none; margin-top: 8px; align-items: center; gap: 8px;">
+            <img id="modal-photo-preview" src="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(212, 175, 120, 0.3);" />
+            <span style="font-size: 0.78rem; color: #777;" id="modal-photo-ready-text">Image prête</span>
+            <button class="btn-danger-outline" type="button" style="padding: 4px 10px;" onclick="window.clearModalPhoto()">✕</button>
+          </div>
+        </div>
+        <label class="modal__checkbox-row">
+          <input type="checkbox" id="input-optional" checked />
+          <span data-label="optional">Prestation optionnelle</span>
+        </label>
+        <div class="modal__actions">
+          <button type="button" class="modal__btn modal__btn--cancel" id="modal-btn-cancel">Annuler</button>
+          <button type="button" class="modal__btn modal__btn--add" id="modal-btn-add">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Client Manager Modal ── -->
+  <div class="modal" id="client-modal">
+    <div class="modal__overlay" id="client-modal-overlay" onclick="window.closeClientModal()"></div>
+    <div class="modal__content" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+      <h2 class="modal__title" id="client-modal-title" style="margin-bottom: var(--space-md); padding-bottom: var(--space-sm);">Gestion des Clients & Projets</h2>
+      
+      <!-- Export/Import Actions Row -->
+      <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-md); border-bottom: 1px solid rgba(212, 175, 120, 0.15); padding-bottom: var(--space-md); align-items: center; flex-wrap: wrap;">
+        <button class="btn-browse" style="padding: 6px 14px; font-size: 0.78rem;" id="btn-export-db" onclick="window.exportDatabase()">💾 Exporter Sauvegarde</button>
+        <label class="btn-browse" style="padding: 6px 14px; font-size: 0.78rem; background: transparent; border: 1px solid rgba(212, 175, 120, 0.3); color: var(--color-text-gold); margin-bottom: 0;" id="lbl-import-db">
+          📁 Importer Sauvegarde
+          <input type="file" id="input-import-db" accept=".json" style="display:none" onchange="window.importDatabase(this)" />
+        </label>
+        
+        <span style="color: rgba(212, 175, 120, 0.4); margin: 0 4px;">|</span>
+        
+        <button class="btn-browse" style="padding: 6px 14px; font-size: 0.78rem; background: #24292e; color: #fff; border: 1px solid #24292e;" id="btn-github-backup" onclick="window.backupToGitHub()">☁️ Sauvegarder sur GitHub</button>
+        <button class="btn-browse" style="padding: 6px 14px; font-size: 0.78rem; background: transparent; border: 1px solid #24292e; color: #24292e;" id="btn-github-restore" onclick="window.restoreFromGitHub()">☁️ Restaurer depuis GitHub</button>
+        <button class="btn-browse" style="padding: 6px 10px; font-size: 0.78rem; background: transparent; border: 1px solid rgba(212, 175, 120, 0.5); color: var(--color-text-gold);" id="btn-github-config-toggle" onclick="window.toggleGitHubConfig()">⚙️ Configuration GitHub</button>
+      </div>
+
+      <!-- GitHub Configuration Panel (Hidden by default) -->
+      <div id="github-config-panel" style="display: none; background: rgba(212, 175, 120, 0.05); border: 1px solid rgba(212, 175, 120, 0.2); border-radius: 8px; padding: var(--space-md); margin-bottom: var(--space-md);">
+        <h3 style="font-size: 0.9rem; color: var(--color-text-gold); margin-top: 0; margin-bottom: var(--space-sm);" id="lbl-github-config-title">Paramètres GitHub</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-bottom: var(--space-sm);">
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 4px;" id="lbl-gh-repo">Dépôt (owner/repo)</label>
+            <input type="text" id="input-gh-repo" placeholder="ex: mon-utilisateur/ma-salle-de-fete" style="width: 100%; padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(212, 175, 120, 0.3); background: var(--color-bg-dark); color: #fff;" />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 4px;" id="lbl-gh-branch">Branche</label>
+            <input type="text" id="input-gh-branch" placeholder="main" style="width: 100%; padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(212, 175, 120, 0.3); background: var(--color-bg-dark); color: #fff;" />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-bottom: var(--space-md);">
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 4px;" id="lbl-gh-file">Nom du fichier de sauvegarde</label>
+            <input type="text" id="input-gh-file" placeholder="mariage_devis_backup.json" style="width: 100%; padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(212, 175, 120, 0.3); background: var(--color-bg-dark); color: #fff;" />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 4px;" id="lbl-gh-token">GitHub Personal Access Token (PAT)</label>
+            <input type="password" id="input-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxx" style="width: 100%; padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(212, 175, 120, 0.3); background: var(--color-bg-dark); color: #fff;" />
+          </div>
+        </div>
+        <div style="display: flex; gap: var(--space-sm); justify-content: flex-end;">
+          <button class="btn-browse" style="padding: 6px 14px; font-size: 0.78rem; background: var(--color-text-gold); color: var(--color-bg-dark); border: none;" onclick="window.saveGitHubConfig()" id="btn-save-gh-config">Enregistrer</button>
+        </div>
+      </div>
+
+      <!-- Split layout: left column list of clients, right column selected client's info & projects -->
+      <div class="client-manager-layout" style="display: flex; gap: var(--space-xl); flex: 1; overflow: hidden; min-height: 350px;">
+        
+        <!-- Left: Client list + Add client button -->
+        <div class="client-list-pane" style="flex: 1; border-right: 1px solid rgba(212, 175, 120, 0.15); padding-right: var(--space-md); display: flex; flex-direction: column; gap: var(--space-md); overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+            <h3 style="font-size: 0.95rem; color: var(--color-text-gold); margin: 0;" id="lbl-clients-list">Liste des Clients</h3>
+            <button class="btn-browse" style="padding: 5px 10px; font-size: 0.72rem;" id="btn-add-client-trigger" onclick="window.showAddClientForm()">+ Nouveau</button>
+          </div>
+          <div id="clients-list-container" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); padding-right: 4px;">
+            <!-- Client list items dynamically rendered -->
+          </div>
+        </div>
+        
+        <!-- Right: Client details & Projects -->
+        <div class="client-details-pane" id="client-details-pane" style="flex: 1.4; display: flex; flex-direction: column; gap: var(--space-md); overflow: hidden;">
+          <!-- Welcome Screen (Visible by default) -->
+          <div id="client-pane-welcome" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted); text-align: center; gap: 8px;">
+            <span style="font-size: 2.5rem;">👥</span>
+            <p id="lbl-select-client-prompt" style="font-size: 0.85rem; max-width: 250px;">Sélectionnez un client pour voir ses projets ou modifier ses informations.</p>
+          </div>
+          
+          <!-- Client Form (Hidden by default, shown when editing or creating client) -->
+          <form id="client-form" style="display: none; flex-direction: column; gap: var(--space-md); overflow-y: auto;" onsubmit="return false;">
+            <h4 id="client-form-title" style="color: var(--color-text-gold); margin: 0; font-size: 0.95rem;">Ajouter un Client</h4>
+            <input type="hidden" id="edit-client-id" />
+            <div class="modal__field">
+              <label id="lbl-form-client-name">Nom / Nom des mariés *</label>
+              <input type="text" id="client-name-input" required />
+            </div>
+            <div class="modal__field">
+              <label id="lbl-form-client-phone">Téléphone</label>
+              <input type="text" id="client-phone-input" />
+            </div>
+            <div class="modal__field">
+              <label id="lbl-form-client-email">E-mail</label>
+              <input type="email" id="client-email-input" />
+            </div>
+            <div class="modal__field">
+              <label id="lbl-form-client-address">Adresse</label>
+              <input type="text" id="client-address-input" />
+            </div>
+            <div style="display: flex; gap: var(--space-md); justify-content: flex-end; margin-top: 8px;">
+              <button class="modal__btn modal__btn--cancel" style="padding: 6px 16px; font-size: 0.8rem;" type="button" onclick="window.cancelClientForm()">Annuler</button>
+              <button class="modal__btn modal__btn--add" style="padding: 6px 16px; font-size: 0.8rem;" type="button" id="btn-save-client" onclick="window.saveClient()">Enregistrer</button>
+            </div>
+          </form>
+
+          <!-- Client details + Project list (shown when a client is clicked) -->
+          <div id="client-projects-view" style="display: none; flex-direction: column; gap: var(--space-md); overflow: hidden; height: 100%;">
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(212, 175, 120, 0.12); padding: var(--space-md); border-radius: var(--radius-sm); position: relative; flex-shrink: 0;">
+              <button class="btn-danger-outline" style="position: absolute; top: var(--space-sm); right: var(--space-sm); padding: 4px 8px; font-size: 0.7rem;" onclick="window.deleteClient()">Supprimer</button>
+              <button class="btn-browse" style="position: absolute; top: var(--space-sm); right: 84px; padding: 4px 8px; font-size: 0.7rem; background: transparent; border: 1px solid rgba(212,175,120,0.3); color: var(--color-text-gold);" onclick="window.editClient()">Modifier</button>
+              <h4 id="view-client-name" style="margin: 0 0 6px 0; color: var(--color-text-gold); font-size: 1rem; padding-right: 150px;">Client</h4>
+              <p style="margin: 0; font-size: 0.78rem; color: var(--color-text-secondary);"><span id="lbl-view-phone">Tél :</span> <span id="view-client-phone">-</span></p>
+              <p style="margin: 0; font-size: 0.78rem; color: var(--color-text-secondary);"><span id="lbl-view-email">Email :</span> <span id="view-client-email">-</span></p>
+              <p style="margin: 0; font-size: 0.78rem; color: var(--color-text-secondary);"><span id="lbl-view-address">Adresse :</span> <span id="view-client-address">-</span></p>
+            </div>
+
+            <!-- Projects Section -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm); flex: 1; overflow: hidden;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <h4 style="margin: 0; font-size: 0.9rem; color: var(--color-text-gold);" id="lbl-projects-heading">Projets du Client</h4>
+                <button class="btn-browse" style="padding: 4px 10px; font-size: 0.7rem;" onclick="window.showAddProjectForm()">+ Nouveau Projet</button>
+              </div>
+              
+              <!-- Project creation inline form -->
+              <form id="project-form" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid rgba(212, 175, 120, 0.15); padding: var(--space-md); border-radius: var(--radius-sm); flex-direction: column; gap: var(--space-sm); flex-shrink: 0;" onsubmit="return false;">
+                <div class="modal__field">
+                  <label id="lbl-form-project-name" style="font-size: 0.72rem;">Nom du projet *</label>
+                  <input type="text" id="project-name-input" required placeholder="ex: Mariage de Sarah & Mehdi" style="padding: 6px 10px; font-size: 0.8rem;" />
+                </div>
+                <div class="modal__field">
+                  <label id="lbl-form-project-date" style="font-size: 0.72rem;">Date de l'événement</label>
+                  <input type="date" id="project-date-input" style="padding: 6px 10px; font-size: 0.8rem; color-scheme: dark;" />
+                </div>
+                <div style="display: flex; gap: var(--space-md); justify-content: flex-end; margin-top: 4px;">
+                  <button class="modal__btn modal__btn--cancel" style="padding: 4px 10px; font-size: 0.75rem;" type="button" onclick="window.cancelProjectForm()">Annuler</button>
+                  <button class="modal__btn modal__btn--add" style="padding: 4px 10px; font-size: 0.75rem;" type="button" onclick="window.saveProject()">Créer</button>
+                </div>
+              </form>
+
+              <!-- Projects list -->
+              <div id="projects-list-container" style="display: flex; flex-direction: column; gap: var(--space-sm); flex: 1; overflow-y: auto; padding-right: 4px;">
+                <!-- Projects rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      
+      <div class="modal__actions" style="margin-top: var(--space-md); padding-top: var(--space-sm); flex-shrink: 0;">
+        <button type="button" class="modal__btn modal__btn--cancel" id="client-modal-btn-close" onclick="window.closeClientModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast Notification ── -->
+  <div class="toast" id="toast"></div>
+
+</body>
+</html>
