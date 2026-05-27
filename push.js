@@ -30,7 +30,8 @@ const branch = config.github_branch || 'main';
 // Helper to run git
 function runGit(command, showOutput = false) {
   try {
-    return execSync(command, { encoding: 'utf8', stdio: showOutput ? 'inherit' : 'pipe' });
+    const result = execSync(command, { encoding: 'utf8', stdio: showOutput ? 'inherit' : 'pipe' });
+    return showOutput ? true : result;
   } catch (err) {
     if (!showOutput && err.stderr) {
       console.error(`${colors.red}Erreur Git: ${err.stderr.toString().trim()}${colors.reset}`);
